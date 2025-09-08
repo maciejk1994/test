@@ -53,7 +53,7 @@ async def fetch_page(session, page):
         proxy = random.choice(PROXIES)
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         try:
-            async with session.get(url, proxy=proxy, headers=headers, timeout=10) as resp:
+            async with session.get(url, proxy=proxy, headers=headers, timeout=15) as resp:
                 resp.raise_for_status()
                 json_data = await resp.json()
                 return page, [[u['id'], u['model']['color']] for u in json_data['rankings']['data']]
