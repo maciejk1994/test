@@ -1,14 +1,14 @@
 name: JBZD Full Scraper
 
+# Można uruchamiać ręcznie lub automatycznie codziennie
 on:
-  workflow_dispatch:
-    # ręczne uruchomienie
+  workflow_dispatch:      # ręczne uruchomienie
   schedule:
     - cron: "0 3 * * *"  # codziennie o 3:00 UTC
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repo
@@ -29,13 +29,13 @@ jobs:
           python test.py
 
       - name: Upload CSV
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: jbzd-users-colors
           path: jbzd_users_colors.csv
 
       - name: Upload log
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: jbzd-scraper-log
           path: jbzd_scraper_log.txt
