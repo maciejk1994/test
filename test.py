@@ -11,11 +11,11 @@ from asyncio import Semaphore
 PER_PAGE = 50
 MEMORY_BATCH = 1000  # flush co 1000 stron
 BASE_URL = "https://api.jbzd.com.pl/ranking/get"
-CONCURRENT_REQUESTS = 10  # liczba równoczesnych requestów
+CONCURRENT_REQUESTS = 10  # liczba równoległych requestów
 CSV_FILE = "jbzd_users_colors.csv"
 LOG_FILE = "jbzd_scraper_log.txt"
 
-# Przykładowe proxy (możesz zmienić/uzupełnić)
+# Przykładowe proxy (uzupełnij listę swoich publicznych lub płatnych proxy)
 PROXIES = [
     None,  # brak proxy – użycie własnego IP
     # "http://user:pass@proxy1:port",
@@ -46,11 +46,10 @@ def save_csv(data):
     with open(CSV_FILE, 'a', newline='', encoding='utf-8') as f:
         csv.writer(f).writerows(data)
 
-async def fetch_page(session, page):
+async def fetch_page(session, page, proxy):
     retry = 0
     url = f"{BASE_URL}?page={page}&per_page={PER_PAGE}"
     while True:
-        proxy = random.choice(PROXIES)
         headers = {"User-Agent": random.choice(USER_AGENTS)}
         try:
             async with session.get(url, proxy=proxy, headers=headers, timeout=15) as resp:
@@ -66,10 +65,11 @@ async def fetch_page(session, page):
 async def run_scraper():
     start = time.time()
 
+    # Pobranie liczby wszystkich stron
     async with aiohttp.ClientSession() as session:
-        # Pobranie liczby wszystkich stron
         async with session.get(f"{BASE_URL}?page=1&per_page={PER_PAGE}") as r:
             last_page = (await r.json())['rankings']['last_page']
+
     total_pages = last_page
     log(f"Łącznie stron do pobrania: {total_pages}")
 
@@ -78,17 +78,19 @@ async def run_scraper():
     sem = Semaphore(CONCURRENT_REQUESTS)
 
     async with aiohttp.ClientSession() as session:
-        async def worker(page):
-            async with sem:
-                return await fetch_page(session, page)
 
         while pages:
             batch, pages = pages[:CONCURRENT_REQUESTS], pages[CONCURRENT_REQUESTS:]
-            results = await asyncio.gather(*(worker(p) for p in batch))
+            # Przydzielamy cyklicznie różne proxy dla każdego requestu w batchu
+            assigned_proxies = [PROXIES[i % len(PROXIES)] for i in range(len(batch))]
+            tasks = [fetch_page(session, p, proxy) for p, proxy in zip(batch, assigned_proxies)]
+            results = await asyncio.gather(*tasks)
+
             for _, data in results:
                 done += 1
                 buffer.extend(data)
 
+            # flush co MEMORY_BATCH stron
             if len(buffer) >= MEMORY_BATCH * PER_PAGE:
                 save_csv(buffer)
                 log(f"Zapisano dane z {MEMORY_BATCH} stron do CSV")
@@ -103,7 +105,7 @@ async def run_scraper():
         save_csv(buffer)
         log(f"Zapisano dane z ostatnich {len(buffer)//PER_PAGE} stron do CSV")
 
-    log(f"✅ Całkowity czas: {format_time(time.time()-start)}\n")
+    log(f"✅ Całkowity czas: {format_time(time.time()-start)}")
 
 # ==============================
 # URUCHOMIENIE
@@ -112,6 +114,7 @@ if __name__ == "__main__":
     # Tworzymy plik CSV z nagłówkiem
     with open(CSV_FILE,'w',newline='',encoding='utf-8') as f:
         csv.writer(f).writerow(['id','color'])
+    # Tworzymy log
     with open(LOG_FILE,'w',encoding='utf-8') as f:
         f.write("=== Start pobierania JBZD ===\n")
 
