@@ -10,12 +10,10 @@ from asyncio import Semaphore
 # ==============================
 PER_PAGE = 50
 MEMORY_BATCH = 100
-TEST_MAX_PAGES = 1000
 BASE_URL = "https://api.jbzd.com.pl/ranking/get"
-CONCURRENT_REQUESTS_RANGE = range(2, 6)  # liczba równoczesnych requestów do testowania
-PAUSE_BETWEEN_TESTS = 10  # sekundy przerwy między testami
-CSV_FILE = "test_users_colors_test.csv"
-LOG_FILE = "test_log.txt"
+CONCURRENT_REQUESTS = 10  # liczba równoczesnych requestów
+CSV_FILE = "jbzd_users_colors.csv"
+LOG_FILE = "jbzd_scraper_log.txt"
 
 # Przykładowe proxy (możesz zmienić/uzupełnić)
 PROXIES = [
@@ -65,20 +63,19 @@ async def fetch_page(session, page):
             log(f"Błąd przy stronie {page} z proxy {proxy}: {e}. Retry za {wait:.1f}s (próba {retry})")
             await asyncio.sleep(wait)
 
-async def run_test(concurrent_requests):
-    log(f"\n=== Test dla CONCURRENT_REQUESTS = {concurrent_requests} ===\n")
+async def run_scraper():
     start = time.time()
 
     async with aiohttp.ClientSession() as session:
         # Pobranie liczby wszystkich stron
         async with session.get(f"{BASE_URL}?page=1&per_page={PER_PAGE}") as r:
             last_page = (await r.json())['rankings']['last_page']
-    total_pages = min(TEST_MAX_PAGES, last_page)
-    log(f"Testujemy {total_pages} stron z {last_page} możliwych")
+    total_pages = last_page
+    log(f"Łącznie stron do pobrania: {total_pages}")
 
     pages = list(range(1, total_pages+1))
     buffer, done = [], 0
-    sem = Semaphore(concurrent_requests)
+    sem = Semaphore(CONCURRENT_REQUESTS)
 
     async with aiohttp.ClientSession() as session:
         async def worker(page):
@@ -86,7 +83,7 @@ async def run_test(concurrent_requests):
                 return await fetch_page(session, page)
 
         while pages:
-            batch, pages = pages[:concurrent_requests], pages[concurrent_requests:]
+            batch, pages = pages[:CONCURRENT_REQUESTS], pages[CONCURRENT_REQUESTS:]
             results = await asyncio.gather(*(worker(p) for p in batch))
             for _, data in results:
                 done += 1
@@ -116,11 +113,7 @@ if __name__ == "__main__":
     with open(CSV_FILE,'w',newline='',encoding='utf-8') as f:
         csv.writer(f).writerow(['id','color'])
     with open(LOG_FILE,'w',encoding='utf-8') as f:
-        f.write("=== Test start ===\n")
+        f.write("=== Start pobierania JBZD ===\n")
 
-    for cr in CONCURRENT_REQUESTS_RANGE:
-        asyncio.run(run_test(cr))
-        log(f"Czekamy {PAUSE_BETWEEN_TESTS}s przed kolejnym testem...")
-        time.sleep(PAUSE_BETWEEN_TESTS)
-
-    log("✅ Wszystkie testy zakończone")
+    asyncio.run(run_scraper())
+    log("✅ Wszystkie strony pobrane")
