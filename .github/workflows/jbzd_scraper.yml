@@ -1,10 +1,9 @@
 name: JBZD Full Scraper
 
-# Można uruchamiać ręcznie lub automatycznie codziennie
 on:
-  workflow_dispatch:      # ręczne uruchomienie
+  workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"  # codziennie o 3:00 UTC
+    - cron: "0 3 * * *"
 
 jobs:
   scrape:
