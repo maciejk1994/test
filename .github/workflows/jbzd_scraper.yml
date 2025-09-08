@@ -3,7 +3,7 @@ name: JBZD Full Scraper
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 3 * * *"  # codziennie o 3:00
 
 jobs:
   scrape:
@@ -24,8 +24,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run full JBZD scraper
-        run: |
-          python test.py
+        run: python test.py
 
       - name: Upload CSV
         uses: actions/upload-artifact@v4
