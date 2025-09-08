@@ -9,7 +9,7 @@ from asyncio import Semaphore
 # PARAMETRY
 # ==============================
 PER_PAGE = 50
-MEMORY_BATCH = 100
+MEMORY_BATCH = 1000  # flush co 1000 stron
 BASE_URL = "https://api.jbzd.com.pl/ranking/get"
 CONCURRENT_REQUESTS = 10  # liczba równoczesnych requestów
 CSV_FILE = "jbzd_users_colors.csv"
